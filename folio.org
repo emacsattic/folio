@@ -1,0 +1,56 @@
+* Welcome to the Folio project home page
+
+file:../images/folio-logo.png
+
+* Overview
+
+Emacs Folio collects Org-mode pages into "notebooks" composed of
+interlinked notes. Folio aims to integrate org-mode information
+management into the GNOME Desktop by using open standards like Tango,
+D-Bus, and the Freedesktop specs.
+
+Inspirations include WikiWiki, Planner-mode, Tomboy, and Microsoft
+OneNote.
+
+* Roadmap
+
+** TODO Implement wiki notebooks
+*** A notebook is a collection of related org pages and other files.
+These are stored together in a notebook's folder on disk, along with a
+file called =.folio= used for metadata. Page names can be things like
+"FooBar" or "2009.10.22", and the page filename is obtained by adding
+".org" to the end of the name. Backlinks work just as in a wiki.
+*** CamelCase links connect notes together.
+Typing a CamelCase link into the text highlights it; when you click on
+such a link, the page is visited (created if necessary.)
+*** Every notebook has a FrontPage.
+This is the default entry point. Links to new/recently edited notes
+are here, as well as any outstanding TODO items etc. 
+**** TODO figure out how to update this summary page... org dynamic blocks
+*** Notebooks can have "day pages" for journaling, i.e. 2009.10.22
+I always liked the day page feature of Planner Mode, and a similar
+journaling feature will be supported here. 
+*** Create custom emacs frames for editing/browsing notes, a la Tomboy
+Notes can be edited within a traditional emacs frame, or in a custom
+frame opened just for the purpose. This frame has a custom toolbar,
+proportional antialiased fonts, and is without fringe or modeline.
+** TODO User interface styling based on Tango specification
+*** Color-coded icons for org-mode constructs (keywords, tags, drawers)
+*** Hotkey to toggle icon display
+*** Custom Emacs color theme integrates with GNOME and the included icons
+*** Matching toolbar button icons for common actions
+*** Optionally set proportional antialiased font in Folio buffers
+** TODO Global desktop note taking/finding commands via emacsclient
+*** Pop up a special emacs frame in folio theme/font with no fringe and with toolbar
+** TODO Publishing notebooks to the Web
+This feature is based on Org's existing HTML publishing.
+** TODO Sharing notebooks via distributed version control
+Could possibly work with Worg.
+** TODO Embedded media (PulseAudio, ecasound)
+** TODO Desktop notifications for Org appointments etc
+Just one application for the new D-Bus support in GNU Emacs.
+
+* Wishlist
+
+** Annotating and linking audio recordings w/ecasound editing support
+** Browsing images (image-dired)

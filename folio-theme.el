@@ -1,4 +1,4 @@
-;;; folio.el --- businesslike soft theme
+;;; folio-theme.el --- businesslike soft theme for GNOME
 
 ;; Copyright (C) 2007  David O'Toole
 
@@ -1525,5 +1525,5 @@
 
      (zmacs-region ((t (:background "grey30")))))))
 
-(provide 'folio)
-;;; folio.el ends here
+(provide 'folio-theme)
+;;; folio-theme.el ends here
