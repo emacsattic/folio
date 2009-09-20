@@ -61,7 +61,7 @@
 (defvar camel-map nil)
 (when (null camel-map)
   (setq camel-map (make-sparse-keymap))
-  (define-key camel-map (kbd "<f9>" 'camel-mode))
+  (define-key camel-map (kbd "<f9>" 'camel-mode)))
 
 ;; optionally in your .emacs:
 ;; (global-set-key (kbd "<f9>") 'camel-mode)

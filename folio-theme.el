@@ -598,7 +598,7 @@
      (font-latex-warning ((t (nil))))
      (font-latex-warning-face ((t (:foreground "gold"))))
      (font-lock-builtin ((t (nil))))
-     (font-lock-builtin-face ((t (:foreground "yellowgreen5"))))
+     (font-lock-builtin-face ((t (:foreground "yellowgreen"))))
      (font-lock-comment ((t (nil))))
      (font-lock-comment-delimiter ((t (nil))))
      (font-lock-comment-delimiter-face ((t (:background "gray95" :foreground "gray50"))))
@@ -1522,6 +1522,7 @@
      (riece-modeline-current-face ((t (nil))))
      (riece-modeline-history-face ((t (nil))))
      (riece-modeline-unread-face ((t (nil))))
+     (camel-face ((t (:foreground "skyblue2" :bold t :weight bold :underline t))))
 
      (zmacs-region ((t (:background "grey30")))))))
 

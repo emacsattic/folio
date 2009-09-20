@@ -113,15 +113,21 @@ list. See also `folio-match-regexp-or-list'."
 ;; :exclude    When non-nil, a regexp or list of files to exclude.
 ;; :publishing-configuration TODO etags, etc
 
-(defvar *folio-default-properties* '(:exclude "^\\."))
+(defvar *folio-default-properties* '(:exclude "^\\.")
+  "These default property values may be overridden by setting the
+relevant notebook property. See also `folio-notebook-property'.")
 
-(defvar *folio-properties-file-name* ".folio")
+(defvar *folio-properties-file-name* ".folio"
+  "File name for storing a notebook's property data.")
 
 (defun* folio-notebook-property (property &optional (notebook *folio-current-notebook*))
+  "Read the value of the PROPERTY. Optionally specify which
+NOTEBOOK to read it from."
   (or (getf (folio-notebook-properties (folio-find-notebook notebook)) property)
       (getf *folio-default-properties* property)))
 
 (defun* folio-set-notebook-property (property notebook value)
+  "Set VALUE as the value of the property PROPERTY in NOTEBOOK."
   (setf (getf (folio-notebook-properties (folio-find-notebook notebook)) property)
 	value))
 
@@ -132,26 +138,30 @@ list. See also `folio-match-regexp-or-list'."
 ;;; Loading and saving properties to disk
 
 (defun folio-write-sexp-to-file (filename sexp)
+  "Write a #'read-able representation of SEXP to FILENAME."
   (with-temp-buffer
     (insert (format "%S" sexp))
     (write-file filename)
-    (kill-buffer)
-    (message "Wrote folio properties data to %s" filename)))
+    (kill-buffer)))
 
 (defun folio-read-sexp-from-file (filename)
+  "Read a single s-expression from the text file FILENAME."
   (with-temp-buffer
     (insert-file-contents filename)
     (goto-char (point-min))
-    (prog1 (read (current-buffer))
-      (message "Read folio properties data from %s" filename))))
+    (read (current-buffer))))
 
 (defun* folio-write-properties (properties 
 				&optional (notebook *folio-current-notebook*))
-  (let ((book (folio-find-notebook notebook)))
-    (folio-write-sexp-to-file (folio-file *folio-properties-file-name* book)
-			      (folio-notebook-properties book))))
+  "Write the PROPERTIES list to the folio properties file in NOTEBOOK."
+  (let ((book (folio-find-notebook notebook))
+	(propsfile (folio-file *folio-properties-file-name* book)))
+    (folio-write-sexp-to-file propsfile
+			      (folio-notebook-properties book))
+    (message "Wrote notebook properties data to %s" propsfile)))
 
 (defun* folio-read-properties (&optional (notebook *folio-current-notebook*))
+  "Read the NOTEBOOK's properties from its folio properties file."
   (let* ((book (folio-find-notebook notebook))
 	 (propsfile (folio-file *folio-properties-file-name* book)))
     (when book
@@ -161,8 +171,9 @@ list. See also `folio-match-regexp-or-list'."
 	  (insert "()")
 	  (write-file propsfile)))
       ;; now read properties
-      (setf (folio-notebook-properties book)
-	    (folio-read-sexp-from-file propsfile)))))
+      (prog1 (setf (folio-notebook-properties book)
+		   (folio-read-sexp-from-file propsfile))
+      (message "Read notebook properties data from %s" propsfile)))))
 
 ;;; The user's notebook table
 
@@ -172,12 +183,28 @@ list. See also `folio-match-regexp-or-list'."
 (defvar *folio-current-notebook* nil
   "Name of the selected notebook, if any.")
 
+(defvar *folio-notebook-table-file* "~/.folio-notebooks"
+  "Default file location of saved notebook table.")
+
+(defun folio-read-notebook-table-maybe ()
+  (let ((table *folio-notebook-table-file*))
+    (when (file-exists-p table)
+      (assert (featurep 'hashtable-print-readable))
+      (folio-read-sexp-from-file table))))
+
+(defun folio-write-notebook-table-maybe ()
+  (let ((table *folio-notebook-table-file*))
+    (if (featurep 'hashtable-print-readable)
+	(folio-write-sexp-to-file table *folio-notebooks*)
+	(message "Not saving notebook table due to lack of printable hashes."))))
+
 (defun folio-initialize-notebooks ()
-  (setf *folio-notebooks* (make-hash-table :test 'equal)))
+  (setf *folio-notebooks* (or (folio-read-notebook-table-maybe)
+			      (make-hash-table :test 'equal))))
 
 (defun folio-choose-notebook ()
   (interactive)
-  (completing-read "Choose notebook: " *folio-notebooks* nil :require-match))
+  (completing-read "Choose notebook: " *folio-notebooks* nil t))
 
 (defun* folio-switch-to-notebook (&optional (name (folio-choose-notebook)))
   (interactive)
@@ -191,11 +218,12 @@ list. See also `folio-match-regexp-or-list'."
 (defun folio-add-notebook (notebook)
   (assert (folio-notebook-p notebook))
   (let ((name (fprop :name notebook)))
-    (when (gethash name *folio-notebooks*)
-      ;; resolve name conflicts by appending UUID to table key.
-      ;; this only affects the user's table, it does not affect the notebook.
-      (setf name (concatenate 'string name (fprop :uuid notebook))))
+    ;; (when (gethash name *folio-notebooks*)
+    ;;   ;; resolve name conflicts by appending UUID to table key.
+    ;;   ;; this only affects the user's table, it does not affect the notebook.
+    ;;   (setf name (concat name (fprop :uuid notebook))))
     (setf (gethash name *folio-notebooks*) notebook)
+    (folio-write-notebook-table-maybe)
     (message "Added notebook %s" notebook)))
 			 
 (defun folio-load-notebook (directory)
@@ -230,10 +258,61 @@ list. See also `folio-match-regexp-or-list'."
       (folio-scan-files book)
       (folio-add-notebook book))))
 
-;; (folio-create-notebook '(:name "FolioTest") "~/ftest")
-;; (folio-load-notebook "~/ftest")
+;;; Folio pages (org files in a notebook)
 
+(defvar *folio-default-page-name* "FrontPage")
+
+(defvar *folio-page-extension* ".org")
+
+(defun* folio-find-page (&optional (page *folio-default-page-name*)
+				   (notebook *folio-current-notebook*))
+  (find-file (folio-file (concat page *folio-page-extension*) notebook)))
+   
 ;;; Folio frames
+
+(require 'iimage)
+
+(make-variable-buffer-local (defvar *folio-inline-images* nil))
+
+(defvar *folio-images-regexp* (concat "file:\\(~?" 
+				      iimage-mode-image-filename-regex
+				      "\\)"))
+
+(defun* folio-do-inline-images (arg)
+  (let ((buffer-read-only nil)
+	(file nil)
+	(modified-p (buffer-modified-p (current-buffer))))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward *folio-images-regexp* nil t)
+	(if (and (setf file (folio-file (match-string 1)))
+		 (file-exists-p file))
+	    (cond ((and (numberp arg) (plusp arg))
+		   (progn (add-text-properties (match-beginning 0)
+					       (match-end 0)
+					       (list 'display (create-image file)))
+			  (setf *folio-inline-images* t)))
+		  ((null arg)
+		   (if (null *folio-inline-images*)
+		       (progn (add-text-properties (match-beginning 0)
+						   (match-end 0)
+						   (list 'display (create-image file)))
+			      (setf *folio-inline-images* t))
+		       (progn (remove-text-properties (match-beginning 0)
+						      (match-end 0)
+						      '(display))
+			      (setf *folio-inline-images* nil))))))))
+    ;; restore mod status
+    (set-buffer-modified-p modified-p)))
+
+(defun* folio-toggle-inline-images (&optional arg)
+  "Toggle visibility of org image links in current buffer."
+  (interactive)
+  (let ((flag (if (numberp arg)
+		  (if (plusp arg) nil t)
+		  (if *folio-inline-images* t nil))))
+    (set-face-underline-p 'org-link flag)
+    (folio-do-inline-images arg)))
 
 ;; Using these font names as a default assumes recent Emacs, which can
 ;; interpret the new-style font names.
@@ -242,9 +321,49 @@ list. See also `folio-match-regexp-or-list'."
 
 (defvar *folio-sans-font* "Sans 8")
 
-;; (defun folio-configure-frame
+(defvar *folio-use-theme* t)
 
-;; (defun folio-popup 
+(defun* folio-set-buffer-font (&optional (font *folio-sans-font*))
+  (buffer-face-set (font-face-attributes font)))
+
+(defun* folio-configure-frame (&optional (frame (selected-frame)))
+  (with-selected-frame frame
+    (scroll-bar-mode -1)
+    (menu-bar-mode 1)
+    (tool-bar-mode 1)
+    (when *folio-use-theme* (color-theme-folio))))
+
+(defun* folio-configure-buffer (&key (buffer (current-buffer))
+				     (font *folio-sans-font*))
+  (with-current-buffer buffer
+    (setf mode-line-format nil)
+    (folio-set-buffer-font font)
+    (local-set-key (kbd "<f8>") 'folio-toggle-inline-images)
+    (folio-toggle-inline-images 1)
+    (camel-mode 1)))
+
+(defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)
+				       (notebook *folio-current-notebook*))
+  (interactive)
+  (let ((frame (make-frame)))
+    (select-frame frame)
+    (folio-configure-frame frame)
+    (folio-find-page page notebook)
+    (folio-configure-buffer)))
+
+;;; Tests
+
+;; (setf *folio-notebooks* nil)
+;; (setf *folio-notebooks* (make-hash-table :test 'equal))
+;; (folio-write-notebook-table-maybe)
+;; (folio-initialize-notebooks)
+;; (delete-file *folio-notebook-table-file*)
+;; (folio-create-notebook '(:name "Example Notebook") "~/folio/example")
+;; (folio-load-notebook "~/folio/example")
+;; (folio-set-buffer-font *folio-monospace-font*)
+;; (folio-set-buffer-font *folio-sans-font*)
+;; (folio-switch-to-notebook "Example Notebook")
+;; (folio-make-frame-on-page :notebook "Example Notebook")
 
 
 (provide 'folio)

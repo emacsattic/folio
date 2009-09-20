@@ -1,0 +1,23 @@
+* Welcome to Folio!
+
+file:folio-splash.png
+
+Emacs Folio collects Org-mode pages into "notebooks" composed of
+interlinked notes. Folio aims to integrate org-mode information
+management into the GNOME Desktop by using open standards like Tango,
+D-Bus, and the Freedesktop specs.
+
+* Features
+
+** Notebooks are self-contained collections of org "pages" and other files.
+** CamelCase links connect notes together. Plain org links can also be used.
+** Pop-up note editing (similar to Tomboy) with global hot-keys
+** Use different org setups for different projects' notebooks
+** Share your notes via HTML publishing
+** Color-coded icons for in-buffer org constructs (icons use Tango spec)
+** D-BUS integration
+
+* Shortcuts
+
+Press F8 to toggle inline image display. 
+Press F9 to toggle activation of CamelCase links. 
