@@ -746,7 +746,7 @@
      (gui-element ((t (:background "Gray80"))))
      (header-line ((t (:background "grey20" :foreground "gray90" :box nil :underline "gray60"))))
      (headline-face ((t ( :foreground "purple" :bold t :weight bold :background "gray95"))))
-     (help-argument-name ((t (:italic t :foreground "yellow" :slant italic))))
+     (help-argument-name ((t (:italic t :foreground "tomato" :slant italic))))
      (help-highlight-face ((t ( :underline t ))))
      (hexl-address-area ((t (nil))))
      (hexl-address-region ((t (nil))))

@@ -19,7 +19,9 @@ OneNote.
 These are stored together in a notebook's folder on disk, along with a
 file called =.folio= used for metadata. Page names can be things like
 "FooBar" or "2009.10.22", and the page filename is obtained by adding
-".org" to the end of the name. Backlinks work just as in a wiki.
+".org" to the end of the name. Backlinks work just as in a wiki. Org
+tags map to notebook "dividers", i.e. subjects. Tabs for different
+tags are across the top header line.
 *** CamelCase links connect notes together.
 Typing a CamelCase link into the text highlights it; when you click on
 such a link, the page is visited (created if necessary.)
@@ -30,7 +32,7 @@ are here, as well as any outstanding TODO items etc.
 *** Notebooks can have "day pages" for journaling, i.e. 2009.10.22
 I always liked the day page feature of Planner Mode, and a similar
 journaling feature will be supported here. 
-*** Create custom emacs frames for editing/browsing notes, a la Tomboy
+*** Create custom emacs "popup" frames for editing/browsing notes, a la Tomboy
 Notes can be edited within a traditional emacs frame, or in a custom
 frame opened just for the purpose. This frame has a custom toolbar,
 proportional antialiased fonts, and is without fringe or modeline.
