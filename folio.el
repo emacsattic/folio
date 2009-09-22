@@ -42,6 +42,7 @@
   properties ;; written to the .folio file
   files ;; cached list of files in this group. absolute names are used.
   folder ;; disk directory of database
+  pinned ;; non-nil when notebook is TODO define this
   )
 
 ;;; Including, excluding, finding files in notebooks
@@ -154,8 +155,8 @@ NOTEBOOK to read it from."
 (defun* folio-write-properties (properties 
 				&optional (notebook *folio-current-notebook*))
   "Write the PROPERTIES list to the folio properties file in NOTEBOOK."
-  (let ((book (folio-find-notebook notebook))
-	(propsfile (folio-file *folio-properties-file-name* book)))
+  (let* ((book (folio-find-notebook notebook))
+	 (propsfile (folio-file *folio-properties-file-name* book)))
     (folio-write-sexp-to-file propsfile
 			      (folio-notebook-properties book))
     (message "Wrote notebook properties data to %s" propsfile)))
@@ -272,6 +273,9 @@ NOTEBOOK to read it from."
 
 (require 'iimage)
 
+(defvar *folio-use-inline-images* t
+  "User configuration for inline images.")
+
 (make-variable-buffer-local (defvar *folio-inline-images* nil))
 
 (defvar *folio-images-regexp* (concat "file:\\(~?" 
@@ -340,6 +344,7 @@ NOTEBOOK to read it from."
     (folio-set-buffer-font font)
     (local-set-key (kbd "<f8>") 'folio-toggle-inline-images)
     (folio-toggle-inline-images 1)
+    (folio-update-header-line)
     (camel-mode 1)))
 
 (defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)
@@ -350,6 +355,17 @@ NOTEBOOK to read it from."
     (folio-configure-frame frame)
     (folio-find-page page notebook)
     (folio-configure-buffer)))
+
+;;; Header line
+
+(defun folio-update-header-line ()
+  (setf header-line-format (concat 
+			    "File: "
+			    (propertize (file-name-nondirectory (buffer-file-name (current-buffer)))
+					'face 'font-lock-function-name-face)
+			    " Notebook: "
+			    (propertize *folio-current-notebook* 
+					'face 'font-lock-variable-name-face))))
 
 ;;; Tests
 
