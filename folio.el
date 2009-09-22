@@ -245,9 +245,46 @@ NOTEBOOK to read it from."
   (setf *folio-notebooks* (or (folio-read-notebook-table-maybe)
 			      (make-hash-table :test 'equal))))
 
+(defvar *folio-install-directory* nil)
+
+(defun folio-find-install-directory-maybe ()
+  (let ((dir (locate-library "folio")))
+    (when dir 
+      (file-name-directory dir))))
+
+(defvar *folio-home-notebook* "Home")
+
+(defvar *folio-notebook-folder* "~/Notebooks"
+  "Default directory for new notebooks.")
+
+(defun folio-create-notebook-folder-maybe ()
+  (let ((dir (file-name-as-directory *folio-notebook-folder*)))
+    (unless (and (file-exists-p dir)
+		 (file-directory-p dir))
+      (make-directory dir :parents)
+      (message "Created notebook folder %s" dir))))
+
+(defun folio-create-home-notebook-maybe ()
+  (when (not (file-exists-p *folio-notebook-table-file*))
+    (folio-create-notebook-folder-maybe)
+    (prog1 t
+      (let* ((install-dir (or (folio-find-install-directory-maybe)
+			      *folio-install-directory*
+			      (error "Could not find install directory.")))
+	     (src-dir (file-name-as-directory (expand-file-name "example" install-dir)))
+	     (dest-dir (expand-file-name *folio-home-notebook*
+					 (file-name-as-directory *folio-notebook-folder*))))
+	(folio-create-notebook '(:name "Home") dest-dir)
+	(copy-file (expand-file-name "FrontPage.org" src-dir) dest-dir)
+	(copy-file (expand-file-name "folio-splash.png" src-dir) dest-dir)))))
+
 (defun folio-choose-notebook ()
   (interactive)
   (completing-read "Choose notebook: " *folio-notebooks* nil t))
+
+(defun* folio-notebook-exists (name &optional (table *folio-notebooks*))
+  (assert (stringp name))
+  (gethash name table))
 
 (defun* folio-switch-to-notebook (&optional (name (folio-choose-notebook)))
   (interactive)
@@ -265,12 +302,17 @@ NOTEBOOK to read it from."
     ;;   (setf name (concat name (fprop :uuid notebook))))
     (setf (gethash name *folio-notebooks*) notebook)
     (folio-write-notebook-table-maybe)
-    (message "Added notebook %s" notebook)))
-			 
-(defun* folio-open-notebook (directory &optional pinned)
+    (message "Added notebook %s" name)))
+
+(defun* folio-choose-directory ()
+  (read-directory-name "Open notebook in directory: "))
+  			 
+(defun* folio-open-notebook (&optional (directory (folio-choose-directory))
+				       pinned)
   "Add the notebook in DIRECTORY to the user's notebook table.
 When PIN is non-nil, the notebook will be pinned (i.e. marked as
 automatically opened on the next session)."
+  (interactive)
   (let* ((folder (file-name-as-directory directory))
 	 (book (make-folio-notebook :folder folder :pinned pinned)))
     (unless (and (file-exists-p folder)
@@ -281,10 +323,17 @@ automatically opened on the next session)."
       (folio-scan-files book)
       (folio-add-notebook book))))
 
+(defun* folio-pin-notebook (notebook)
+  (setf (folio-notebook-pinned (folio-find-notebook notebook)) t))
+
+(defun* folio-unpin-notebook (notebook)
+  (setf (folio-notebook-pinned (folio-find-notebook notebook)) nil))
+
 (defun* folio-close-notebook (&optional (notebook *folio-current-notebook*))
   (remhash notebook *folio-notebooks*)
   (when (equal notebook *folio-current-notebook*)
-    (setf *folio-current-notebook* nil)))
+    (setf *folio-current-notebook* nil))
+  (folio-write-notebook-table-maybe))
 ;; TODO close buffers visiting those files? 
 
 (defun* folio-find-notebook (&optional (notebook *folio-current-notebook*))
@@ -396,27 +445,6 @@ automatically opened on the next session)."
 			 (if *folio-use-tool-bar* 1 nil))
     (when *folio-use-theme* (color-theme-folio))))
 
-(defun* folio-configure-buffer (&key (buffer (current-buffer))
-				     (font *folio-sans-font*))
-  (with-current-buffer buffer
-    (setf mode-line-format nil)
-    (folio-set-buffer-font font)
-    (local-set-key (kbd "<f8>") 'folio-toggle-inline-images)
-    (folio-toggle-inline-images 1)
-    (folio-update-header-line)
-    (camel-mode 1)))
-
-(defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)
-				       (notebook *folio-current-notebook*))
-  (interactive)
-  (let ((frame (make-frame)))
-    (select-frame frame)
-    (folio-configure-frame frame)
-    (folio-find-page page notebook)
-    (folio-configure-buffer)))
-
-;;; Header line
-
 (defun folio-update-header-line ()
   (setf header-line-format 
 	(concat 
@@ -427,19 +455,47 @@ automatically opened on the next session)."
 	 (propertize *folio-current-notebook* 
 		     'face 'font-lock-variable-name-face))))
 
-;;; Tests
+(defun* folio-configure-buffer (&key (buffer (current-buffer))
+				     (font *folio-sans-font*))
+  (with-current-buffer buffer
+;;    (setf mode-line-format nil)
+    (folio-set-buffer-font font)
+    (local-set-key (kbd "<f8>") 'folio-toggle-inline-images)
+    (folio-toggle-inline-images 1)
+    
+    (folio-update-header-line)
+    (camel-mode 1)))
 
-;; (setf *folio-notebooks* (make-hash-table :test 'equal))
+(defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)
+				       (notebook *folio-current-notebook*))
+  (interactive)
+  (let ((frame (make-frame)))
+    (select-frame frame)
+    (folio-configure-frame frame)
+    (folio-find-page page notebook)))
+
+(defun* folio ()
+  (interactive)
+  (add-hook 'org-mode-hook 'folio-configure-buffer)
+  (add-hook 'org-mode-hook #'(lambda ()
+			       (camel-set-link-handler #'folio-find-page)))
+  (when (folio-create-home-notebook-maybe)
+    (folio-open-notebook (expand-file-name "Home" *folio-notebook-folder*))
+    (folio-pin-notebook "Home"))
+  (folio-switch-to-notebook "Home")
+  (folio-make-frame-on-page :page "FrontPage" :notebook "Home"))
+
+;;; Tests
 
 ;; (delete-file *folio-notebook-table-file*)
 ;; (setf *folio-notebooks* nil)
-;; (folio-initialize-notebooks)
-;; (folio-write-notebook-table-maybe)
 
 ;; (folio-open-notebook "~/folio/example")
 ;; (folio-switch-to-notebook "Example Notebook")
 ;; (folio-make-frame-on-page :notebook "Example Notebook")
 ;; (folio-close-notebook "Example Notebook")
+
+;; (folio)
 
 ;; (folio-create-notebook '(:name "Example Notebook") "~/folio/example")
 ;; (folio-set-buffer-font *folio-monospace-font*)
