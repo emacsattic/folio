@@ -327,14 +327,20 @@ NOTEBOOK to read it from."
 
 (defvar *folio-use-theme* t)
 
+(defvar *folio-use-menu-bar* t)
+
+(defvar *folio-use-tool-bar* nil)
+
 (defun* folio-set-buffer-font (&optional (font *folio-sans-font*))
   (buffer-face-set (font-face-attributes font)))
 
 (defun* folio-configure-frame (&optional (frame (selected-frame)))
   (with-selected-frame frame
-    (scroll-bar-mode -1)
-    (menu-bar-mode 1)
-    (tool-bar-mode 1)
+    ;; (scroll-bar-mode -1)
+    (set-frame-parameter frame 'menu-bar-lines 
+			 (if *folio-use-menu-bar* 1 nil))
+    (set-frame-parameter frame 'tool-bar-lines 
+			 (if *folio-use-tool-bar* 1 nil))
     (when *folio-use-theme* (color-theme-folio))))
 
 (defun* folio-configure-buffer (&key (buffer (current-buffer))
@@ -359,13 +365,14 @@ NOTEBOOK to read it from."
 ;;; Header line
 
 (defun folio-update-header-line ()
-  (setf header-line-format (concat 
-			    "File: "
-			    (propertize (file-name-nondirectory (buffer-file-name (current-buffer)))
-					'face 'font-lock-function-name-face)
-			    " Notebook: "
-			    (propertize *folio-current-notebook* 
-					'face 'font-lock-variable-name-face))))
+  (setf header-line-format 
+	(concat 
+	 "File: "
+	 (propertize (file-name-nondirectory (buffer-file-name (current-buffer)))
+		     'face 'font-lock-function-name-face)
+	 " Notebook: "
+	 (propertize *folio-current-notebook* 
+		     'face 'font-lock-variable-name-face))))
 
 ;;; Tests
 
