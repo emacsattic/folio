@@ -462,8 +462,8 @@ automatically opened on the next session)."
     (folio-set-buffer-font font)
     (local-set-key (kbd "<f8>") 'folio-toggle-inline-images)
     (folio-toggle-inline-images 1)
-    
     (folio-update-header-line)
+    (setf org-todo-keyword-faces nil)
     (camel-mode 1)))
 
 (defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)

@@ -31,8 +31,8 @@
 
 (defvar *camel-regexp* "\\<[A-Z][a-z]+[A-Z][a-z]+\\([A-Z][a-z]+\\)*\\>")
 
-(defvar *camel-link-handler* nil
-  "Function to handle links.")
+(make-variable-buffer-local (defvar *camel-link-handler* nil
+			      "Function to handle links."))
 
 (defun camel-set-link-handler (handler)
   (assert (functionp handler))

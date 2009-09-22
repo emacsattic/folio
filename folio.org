@@ -14,9 +14,25 @@ OneNote.
 
 * Tasks
 
-** TODO prune notebooks upon reading back, UNLESS crash-recovering-p
-** TODO run sanity checks (directory exist etc)
-** TODO reread propsfiles
+** TODO enable camel by default in orgmode
+** TODO enable images by default in orgmode
+** TODO camel link other window
+** TODO camel right click menu?
+** TODO camel tags are also wiki words?
+** TODO camel TODO are also wiki words? 
+** TODO remove CamelCase textprops when editing text
+** TODO fix CamelCase conflicting with org headline fontification
+** TODO keyboard command for following CamelCase links
+** TODO button ideas
+*** TODO home page
+*** TODO forward / back
+*** TODO TODO item
+*** TODO new page
+*** TODO toggle images/links
+*** TODO print
+*** TODO publish
+*** TODO share
+** TODO import file command with gtk file selector
 
 * Roadmap
 

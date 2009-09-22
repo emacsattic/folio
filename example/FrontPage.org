@@ -1,27 +1,26 @@
-* Welcome to Folio!
 
 file:folio-splash.png
 
-EmacsFolio collects OrgMode pages into "notebooks" composed of
-interlinked notes, files, and metadata. Folio aims to integrate
-OrgMode information management into the GnomeDesktop by using open
-standards like TangoSpecification, DeeBus, and the FreeDesktop specs.
+Welcome to your new Folio personal notebook. 
 
-* Features
+This is an editable, publishable Org page; you can type LinksLikeThis
+to create new pages just by typing their names and clicking them.
+(Visit the [[http://orgmode.org][Org mode website]] for more information on org-mode.)
 
- - Notebooks are self-contained collections of OrgPages and other files.
- - CamelCase links connect notes together. Plain org links can also be used.
- - PopUp note editing (similar to Tomboy) with global HotKeys
- - Use different org setups for different projects' notebooks
- - Share your notes via HtmlPublishing
- - Color-coded OrgIcons for in-buffer org constructs.
-   The icons' color scheme follows the TangoSpecification.
- - DeeBus (i.e. D-Bus) integration for DesktopNotifications and so on.
+Try typing a few tasks into the TODO list below:
 
-* Shortcuts
+* Today's tasks
 
-Press F8 to toggle inline image display. 
-Press F9 to toggle activation of CamelCase links. 
+** TODO Make a todo-list 
+** TODO Right click the TODO keyword to change its status
+** TODO {your text goes here}
 
-* Related
- - http://orgmode.org/worg/org-contrib/babel/org-babel.php
+More online help can be found at the [[http://dto.github.com/notebook/folio.html][Folio home page]].
+
+You can discard the content of this page and continue to use this
+notebook and create new pages. The image file is called
+folio-splash.png and can be deleted without harm. 
+
+Press F8 to toggle inline image display.  
+Press F9 to toggle activation of CamelCase links.
+
