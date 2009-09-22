@@ -12,6 +12,12 @@ D-Bus, and the Freedesktop specs.
 Inspirations include WikiWiki, Planner-mode, Tomboy, and Microsoft
 OneNote.
 
+* Tasks
+
+** TODO prune notebooks upon reading back, UNLESS crash-recovering-p
+** TODO run sanity checks (directory exist etc)
+** TODO reread propsfiles
+
 * Roadmap
 
 ** TODO Implement wiki notebooks
