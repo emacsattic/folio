@@ -41,8 +41,10 @@
 (defstruct folio-notebook 
   properties ;; written to the .folio file
   files ;; cached list of files in this group. absolute names are used.
-  folder ;; disk directory of database
-  pinned ;; non-nil when notebook is TODO define this
+  folder ;; disk directory of database.
+  pinned ;; non-nil when notebook is to be retained across sessions.
+  ;; otherwise, you must manually re-open the notebook next
+  ;; session with M-x `folio-open-notebook'.
   )
 
 ;;; Including, excluding, finding files in notebooks
@@ -178,6 +180,10 @@ NOTEBOOK to read it from."
 
 ;;; The user's notebook table
 
+;; Your notebook table is an index of all your open notebooks.
+;; Notebooks can be "pinned"; this means it will be kept open across
+;; sessions (i.e. when you restart Emacs.)
+
 (defvar *folio-notebooks* nil
   "Hash table mapping string names to notebook objects.")
 
@@ -187,16 +193,52 @@ NOTEBOOK to read it from."
 (defvar *folio-notebook-table-file* "~/.folio-notebooks"
   "Default file location of saved notebook table.")
 
+(defun* folio-prune-notebook-table (&optional (table *folio-notebooks*))
+  "Close all non-pinned notebooks."
+  (interactive)
+  (labels ((prune (name notebook)
+	     (unless (folio-notebook-pinned notebook)
+	       (folio-close-notebook notebook))))
+    (maphash #'prune table)))
+
+(defun* folio-rescan-notebook (&optional (notebook *folio-current-notebook*))
+  (let* ((book (folio-find-notebook notebook))
+	 (dir (folio-notebook-folder book))
+	 (propsfile (folio-file *folio-properties-file-name* book)))
+    (if (and (file-exists-p dir)
+	     (file-directory-p dir)
+	     (file-exists-p propsfile))
+	(prog1 (folio-read-properties book)
+	  (folio-scan-files book)
+	  (message "Rescanned notebook %s and found %d files."
+		   (fprop :name book)
+		   (length (folio-notebook-files book))))
+	(message "WARNING: Failed to scan notebook %s in directory %s. Removing notebook." (fprop :name book) dir))))
+
+(defun* folio-rescan-all-notebooks (&optional (table *folio-notebooks*))
+  (interactive)
+  (labels ((rescan (name book)
+	     (folio-rescan-notebook book)))
+    (maphash #'rescan table)))
+	     
+(defvar *folio-crash-recovering-p* nil)
+
 (defun folio-read-notebook-table-maybe ()
-  (let ((table *folio-notebook-table-file*))
-    (when (file-exists-p table)
-      (assert (featurep 'hashtable-print-readable))
-      (folio-read-sexp-from-file table))))
+  (let ((file *folio-notebook-table-file*))
+    (when (file-exists-p file)
+      (if (featurep 'hashtable-print-readable)
+	  (let ((table (folio-read-sexp-from-file file)))
+	    (prog1 table
+	      (assert (hash-table-p table))
+	      (unless *folio-crash-recovering-p* 
+		(folio-prune-notebook-table table))
+	      (folio-rescan-all-notebooks table)))
+	  (message "Not loading notebook table due to lack of printable hashes.")))))
 
 (defun folio-write-notebook-table-maybe ()
-  (let ((table *folio-notebook-table-file*))
+  (let ((file *folio-notebook-table-file*))
     (if (featurep 'hashtable-print-readable)
-	(folio-write-sexp-to-file table *folio-notebooks*)
+	(folio-write-sexp-to-file file *folio-notebooks*)
 	(message "Not saving notebook table due to lack of printable hashes."))))
 
 (defun folio-initialize-notebooks ()
@@ -214,8 +256,6 @@ NOTEBOOK to read it from."
 	     (message "Switched to notebook %s" name))
       (error "Notebook not found: %s" name)))
 
-;;; Creating and opening notebooks.
-
 (defun folio-add-notebook (notebook)
   (assert (folio-notebook-p notebook))
   (let ((name (fprop :name notebook)))
@@ -227,13 +267,25 @@ NOTEBOOK to read it from."
     (folio-write-notebook-table-maybe)
     (message "Added notebook %s" notebook)))
 			 
-(defun folio-load-notebook (directory)
+(defun* folio-open-notebook (directory &optional pinned)
+  "Add the notebook in DIRECTORY to the user's notebook table.
+When PIN is non-nil, the notebook will be pinned (i.e. marked as
+automatically opened on the next session)."
   (let* ((folder (file-name-as-directory directory))
-	 (book (make-folio-notebook :folder folder)))
+	 (book (make-folio-notebook :folder folder :pinned pinned)))
+    (unless (and (file-exists-p folder)
+		 (file-directory-p folder))
+      (error "Cannot open directory %s" directory))
     (prog1 book
       (folio-read-properties book)
       (folio-scan-files book)
       (folio-add-notebook book))))
+
+(defun* folio-close-notebook (&optional (notebook *folio-current-notebook*))
+  (remhash notebook *folio-notebooks*)
+  (when (equal notebook *folio-current-notebook*)
+    (setf *folio-current-notebook* nil)))
+;; TODO close buffers visiting those files? 
 
 (defun* folio-find-notebook (&optional (notebook *folio-current-notebook*))
   (when (null *folio-notebooks*)
@@ -241,8 +293,9 @@ NOTEBOOK to read it from."
   (cond ((folio-notebook-p notebook)
 	 notebook)
 	((stringp notebook)
-	 (gethash notebook *folio-notebooks*))
-	(t (error "Cannot find notebook %S" notebook))))
+	 (or (gethash notebook *folio-notebooks*)
+	     (error "Unable to find notebook %s" notebook))) 
+	(t (error "Invalid notebook."))))
 
 (defun* folio-create-notebook (properties folder)
   ;; create folder if required
@@ -376,17 +429,21 @@ NOTEBOOK to read it from."
 
 ;;; Tests
 
-;; (setf *folio-notebooks* nil)
 ;; (setf *folio-notebooks* (make-hash-table :test 'equal))
-;; (folio-write-notebook-table-maybe)
-;; (folio-initialize-notebooks)
+
 ;; (delete-file *folio-notebook-table-file*)
-;; (folio-create-notebook '(:name "Example Notebook") "~/folio/example")
-;; (folio-load-notebook "~/folio/example")
-;; (folio-set-buffer-font *folio-monospace-font*)
-;; (folio-set-buffer-font *folio-sans-font*)
+;; (setf *folio-notebooks* nil)
+;; (folio-initialize-notebooks)
+;; (folio-write-notebook-table-maybe)
+
+;; (folio-open-notebook "~/folio/example")
 ;; (folio-switch-to-notebook "Example Notebook")
 ;; (folio-make-frame-on-page :notebook "Example Notebook")
+;; (folio-close-notebook "Example Notebook")
+
+;; (folio-create-notebook '(:name "Example Notebook") "~/folio/example")
+;; (folio-set-buffer-font *folio-monospace-font*)
+;; (folio-set-buffer-font *folio-sans-font*)
 
 
 (provide 'folio)
