@@ -218,8 +218,10 @@ NOTEBOOK to read it from."
 (defun* folio-rescan-all-notebooks (&optional (table *folio-notebooks*))
   (interactive)
   (labels ((rescan (name book)
-	     (folio-rescan-notebook book)))
-    (maphash #'rescan table)))
+	     (folio-rescan-notebook book)
+	     (folio-write-properties (folio-notebook-properties book) book)))
+    (maphash #'rescan table))
+  (folio-write-notebook-table-maybe))
 	     
 (defvar *folio-crash-recovering-p* nil)
 
@@ -229,10 +231,7 @@ NOTEBOOK to read it from."
       (if (featurep 'hashtable-print-readable)
 	  (let ((table (folio-read-sexp-from-file file)))
 	    (prog1 table
-	      (assert (hash-table-p table))
-	      (unless *folio-crash-recovering-p* 
-		(folio-prune-notebook-table table))
-	      (folio-rescan-all-notebooks table)))
+	      (assert (hash-table-p table))))
 	  (message "Not loading notebook table due to lack of printable hashes.")))))
 
 (defun folio-write-notebook-table-maybe ()
@@ -243,7 +242,10 @@ NOTEBOOK to read it from."
 
 (defun folio-initialize-notebooks ()
   (setf *folio-notebooks* (or (folio-read-notebook-table-maybe)
-			      (make-hash-table :test 'equal))))
+			      (make-hash-table :test 'equal)))
+  (unless *folio-crash-recovering-p* 
+    (folio-prune-notebook-table))
+  (folio-rescan-all-notebooks))
 
 (defvar *folio-install-directory* nil)
 
@@ -305,7 +307,7 @@ NOTEBOOK to read it from."
     (message "Added notebook %s" name)))
 
 (defun* folio-choose-directory ()
-  (read-directory-name "Open notebook in directory: "))
+  (read-directory-name "Open notebook in directory: " *folio-notebook-folder*))
   			 
 (defun* folio-open-notebook (&optional (directory (folio-choose-directory))
 				       pinned)
@@ -321,15 +323,23 @@ automatically opened on the next session)."
     (prog1 book
       (folio-read-properties book)
       (folio-scan-files book)
-      (folio-add-notebook book))))
+      (folio-add-notebook book)
+      (folio-switch-to-notebook book))))
 
-(defun* folio-pin-notebook (notebook)
-  (setf (folio-notebook-pinned (folio-find-notebook notebook)) t))
+(defun* folio-pin-notebook (&optional (notebook *folio-current-notebook*))
+  (interactive)
+  (setf (folio-notebook-pinned (folio-find-notebook notebook)) t)
+  (folio-write-notebook-table-maybe)
+  (folio-update-header-line))
 
-(defun* folio-unpin-notebook (notebook)
-  (setf (folio-notebook-pinned (folio-find-notebook notebook)) nil))
+(defun* folio-unpin-notebook (&optional (notebook *folio-current-notebook*))
+  (interactive)
+  (setf (folio-notebook-pinned (folio-find-notebook notebook)) nil)
+  (folio-write-notebook-table-maybe)
+  (folio-update-header-line))
 
 (defun* folio-close-notebook (&optional (notebook *folio-current-notebook*))
+  (interactive)
   (remhash notebook *folio-notebooks*)
   (when (equal notebook *folio-current-notebook*)
     (setf *folio-current-notebook* nil))
@@ -369,9 +379,19 @@ automatically opened on the next session)."
 
 (defun* folio-find-page (&optional (page *folio-default-page-name*)
 				   (notebook *folio-current-notebook*))
+  (when (not (equal notebook *folio-current-notebook*))
+    (folio-switch-to-notebook notebook))
   (find-file (folio-file (concat page *folio-page-extension*) notebook)))
    
-;;; Folio frames
+(defun* folio-follow-link (link)
+  (let ((delimiter-pos (position ?: link)))
+    (if (null delimiter-pos)
+	(folio-find-page link)
+	(folio-find-page (subseq link 0 delimiter-pos)
+			 (subseq link delimiter-pos (length link))))))
+      
+
+;;; Inline images
 
 (require 'iimage)
 
@@ -451,9 +471,14 @@ automatically opened on the next session)."
 	 "File: "
 	 (propertize (file-name-nondirectory (buffer-file-name (current-buffer)))
 		     'face 'font-lock-function-name-face)
-	 " Notebook: "
+	 "  |  Notebook: "
 	 (propertize *folio-current-notebook* 
-		     'face 'font-lock-variable-name-face))))
+		     'face 'font-lock-variable-name-face)
+	 "  |  Pinned: "
+	 (propertize (if (folio-notebook-pinned (folio-find-notebook 
+						 *folio-current-notebook*))
+			 "Yes" "No")
+		     'face 'font-lock-constant-face))))
 
 (defun* folio-configure-buffer (&key (buffer (current-buffer))
 				     (font *folio-sans-font*))
@@ -464,6 +489,13 @@ automatically opened on the next session)."
     (folio-toggle-inline-images 1)
     (folio-update-header-line)
     (setf org-todo-keyword-faces nil)
+    (setf org-fontify-whole-heading-line nil)
+    (setf org-startup-indented t)
+    (setf *camel-icons-directory* 
+	  (expand-file-name "icons"
+			    (folio-find-install-directory-maybe)))
+    (setf *camel-icons* '(("TODO" . "todo.png")
+			  ("DONE" . "done.png")))
     (camel-mode 1)))
 
 (defun* folio-make-frame-on-page (&key (page *folio-default-page-name*)
@@ -476,14 +508,18 @@ automatically opened on the next session)."
 
 (defun* folio ()
   (interactive)
+  (folio-initialize-notebooks)
   (add-hook 'org-mode-hook 'folio-configure-buffer)
   (add-hook 'org-mode-hook #'(lambda ()
-			       (camel-set-link-handler #'folio-find-page)))
+			       (camel-set-link-handler #'folio-follow-link)))
   (when (folio-create-home-notebook-maybe)
     (folio-open-notebook (expand-file-name "Home" *folio-notebook-folder*))
     (folio-pin-notebook "Home"))
   (folio-switch-to-notebook "Home")
   (folio-make-frame-on-page :page "FrontPage" :notebook "Home"))
+
+
+
 
 ;;; Tests
 

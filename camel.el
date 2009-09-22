@@ -29,7 +29,8 @@
 
 ;;; Code:
 
-(defvar *camel-regexp* "\\<[A-Z][a-z]+[A-Z][a-z]+\\([A-Z][a-z]+\\)*\\>")
+(defvar *camel-regexp* (concat "\\(\\<[A-Z][a-z]+[A-Z][a-z]+\\([A-Z][a-z]+\\)*\\>\\)"
+			       "\\(\\:\\<[A-Z][a-z]+[A-Z][a-z]+\\([A-Z][a-z]+\\)*\\>\\)*"))
 
 (make-variable-buffer-local (defvar *camel-link-handler* nil
 			      "Function to handle links."))
@@ -44,7 +45,10 @@
 
 (defun camel-follow-link-at-point ()
   (interactive)
-  (let ((word (thing-at-point 'word)))
+  (let ((word (save-excursion 
+		(when (or (looking-at *camel-regexp*)
+			  (re-search-backward *camel-regexp* nil t))
+		  (match-string 0)))))
     (when (and (stringp word)
 	       (string-match *camel-regexp* word))
       (camel-handle-link word))))
@@ -53,8 +57,8 @@
   (interactive "e")
   (let ((pos (posn-point (event-end event)))
 	(window (posn-window (event-end event))))
-    (set-buffer (window-buffer window))
     (goto-char pos)
+    (set-buffer (window-buffer window))
     (camel-follow-link-at-point)))
       
 (defface camel-face
@@ -72,6 +76,7 @@
 (defvar camel-map nil)
 (when (null camel-map)
   (setq camel-map (make-sparse-keymap))
+  (define-key camel-map (kbd "C-c * o") 'camel-follow-link-at-point)
   (define-key camel-map (kbd "<f9>" 'camel-mode)))
 
 ;; optionally in your .emacs:
@@ -105,13 +110,53 @@
 				   keymap ,*camel-mouse-map*
 				   mouse-face camel-mouse-face
 				   help-echo "Click to visit this wiki page.")))
-				 
+
+(defvar *camel-use-icons* t)
+
+(defvar *camel-icons-directory* nil)
+
+(defvar *camel-icons* nil)
+
+(defvar *camel-icon-regexp* nil)
+
+(defun camel-update-icon-regexp ()
+  (setf *camel-icon-regexp*
+	(regexp-opt (mapcar #'car *camel-icons*))))
+
+(defun camel-update-icon-regexp-maybe ()
+  (if (null *camel-icon-regexp*)
+      (camel-update-icon-regexp)
+      *camel-icon-regexp*))
+
+(defun camel-icon-file (name) 
+  (let ((base (cdr (assoc name *camel-icons*))))
+    (when (stringp base)
+      (expand-file-name base *camel-icons-directory*))))
+
+(defun camel-render-icon (begin end)
+  (camel-update-icon-regexp-maybe)
+  (let ((name (buffer-substring-no-properties begin end)))
+    (add-text-properties begin end 
+			 `(camel-fontified ,name
+					   pointer hand
+					   display 
+					   (image :file ,(camel-icon-file name)
+						  :ascent center
+						  :type png)))))
+						     
 (defun camel-do-font-lock (add-or-remove)
   (funcall add-or-remove nil
 	   `((,*camel-regexp* 0 (prog1 camel-face
 				  (camel-render-link (match-beginning 0)
 						     (match-end 0)))
-			      prepend))))
+			      prepend)
+	     (,(camel-update-icon-regexp-maybe) 0 (prog1 camel-face
+						    (camel-render-icon
+						     (match-beginning 0)
+						     (match-end 0)))
+	       append))))
+	       
+						    
 
 (provide 'camel)
 ;;; camel.el ends here
