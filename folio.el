@@ -27,7 +27,6 @@
 (require 'cl)
 (require 'org)
 (require 'camel)
-(require 'uuidgen)
 
 ;;; Notebooks
 
